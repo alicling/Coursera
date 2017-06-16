@@ -1,0 +1,61 @@
+title: "Prediction Assignment Writeup"
+author: "Xiang Li"
+date: "6/10/2017"
+output: html_document
+---
+### libray
+```{r}
+library(dplyr)
+library(caret)
+library(rpart.plot)
+```
+
+###read the data
+```{r}
+train_all<-read.csv("./pml-training.csv")
+train_all<-tbl_df(train_all)
+inTrain  <- createDataPartition(train_all$classe, p=0.7, list=FALSE)
+train <- train_all[inTrain, ]
+test <- train_all[-inTrain, ]
+```
+### remove data with NAs and blanks
+```{r}
+train[train==""]<-NA
+table(is.na(train))
+countna<-function(x){length(which(is.na(x)))}
+nalist<-apply(train,2,countna)
+nalist<-tbl_df(nalist)
+nacol<-which(nalist>50)
+train<-train[,-nacol]
+test<-test[,-nacol]
+table(is.na(train))
+```
+### remove unnessary data
+```{r}
+train<-train[,-c(1:7)]
+test<-test[,-c(1:7)]
+```
+### Build up a model--use decision tree
+```{r}
+rpart <- rpart(classe ~., data = train, method="class")
+rpart.plot(rpart)
+```
+### Confusion Matrix
+```{r}
+predict1<- predict(rpart, newdata=test, type="class")
+confusionMatrix(predict1,test$classe)
+```
+### build up a model--use random forest
+```{r}
+controlRF <- trainControl(method="cv", number=3, verboseIter=FALSE)
+rf <- train(classe ~ ., data=train, method="rf",
+                          trControl=controlRF)
+rf
+predict2 <- predict(rf, newdata=test)
+confusionMatrix(predict2, test$classe)
+```
+### Predict
+```{r}
+newtest<-read.csv("./pml-testing.csv")
+predict(rf, newdata=newtest)
+```
